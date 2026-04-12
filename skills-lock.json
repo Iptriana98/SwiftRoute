@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "skills": {
+    "android-clean-architecture": {
+      "source": "affaan-m/everything-claude-code",
+      "sourceType": "github",
+      "computedHash": "877b63dfe31ec4d864c0a09ead442029a236def32fd2a7fd374083a27b4fa5ba"
+    },
+    "android-jetpack-compose": {
+      "source": "thebushidocollective/han",
+      "sourceType": "github",
+      "computedHash": "7c17e8d8ecfc7159fa18a4359cc0e53868134b6bfd28e825b5c5473d52987853"
+    },
+    "firebase": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "computedHash": "7baaffa06a0da7b669ba88444c21e0c60fbc12906bf4249a04f25b33b3477440"
+    },
+    "mobile-android-design": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "computedHash": "0dfa08663016e0faa2db0611420bd5c17ba2d635a057e17a6b71c2a0c3f2ed79"
+    }
+  }
+}

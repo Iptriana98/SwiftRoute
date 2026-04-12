@@ -1,0 +1,45 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+local.properties
+
+# Build outputs
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# Generated files
+gen/
+out/
+
+# macOS
+.DS_Store
+
+# Environment
+*.env
+local.properties
+
+# Logs
+*.log
+
+# Temporary files
+*.swp
+*.swo
+*~
+
+# iOS
+iosApp/*.xcworkspace
+iosApp/*.xcodeproj
+!iosApp/*.xcodeproj/project.pbxproj
+
+# CocoaPods
+iosApp/Pods/
+
+# Kotlin Multiplatform
+.kexe
