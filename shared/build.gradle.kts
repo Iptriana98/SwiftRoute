@@ -5,6 +5,7 @@ plugins {
 
 kotlin {
     androidTarget()
+    jvm("desktop")
     
     listOf(
         iosX64(),
@@ -36,6 +37,11 @@ kotlin {
         val androidMain by getting {
             dependencies {
                 api("io.insert-koin:koin-android:3.5.3")
+            }
+        }
+        val desktopMain by getting {
+            dependencies {
+                implementation("io.insert-koin:koin-core-jvm:3.5.3")
             }
         }
         val iosX64Main by getting
