@@ -43,3 +43,7 @@ iosApp/Pods/
 
 # Kotlin Multiplatform
 .kexe
+
+# Firebase (contain API keys - DO NOT COMMIT)
+androidApp/google-services.json
+iosApp/iosApp/GoogleService-Info.plist
