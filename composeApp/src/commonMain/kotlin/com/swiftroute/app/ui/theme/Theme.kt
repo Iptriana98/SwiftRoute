@@ -16,8 +16,11 @@ private val DarkColorScheme = darkColorScheme(
     onSecondary = Color(0xFF293041),
     background = Color(0xFF10141A),
     onBackground = Color(0xFFDFE2EB),
-    surface = Color(0xFF10141A),
+    // Surface is slightly different from background for contrast
+    surface = Color(0xFF1A1F27),
     onSurface = Color(0xFFDFE2EB),
+    surfaceVariant = Color(0xFF262A31),
+    onSurfaceVariant = Color(0xFFBFC6DB),
     surfaceContainer = Color(0xFF1C2026),
     surfaceContainerHigh = Color(0xFF262A31),
     surfaceContainerHighest = Color(0xFF31353C),
@@ -25,12 +28,15 @@ private val DarkColorScheme = darkColorScheme(
     outlineVariant = Color(0xFF3C4A46)
 )
 
-// MD3 Light variant as fallback (but user prefers dark)
 private val LightColorScheme = lightColorScheme(
     primary = Color(0xFF006B5C),
     onPrimary = Color(0xFFFFFFFF),
     background = Color(0xFFFBFDFF),
-    onBackground = Color(0xFF191C1E)
+    onBackground = Color(0xFF191C1E),
+    surface = Color(0xFFFFFFFF),
+    onSurface = Color(0xFF191C1E),
+    surfaceVariant = Color(0xFFF0F0F0),
+    onSurfaceVariant = Color(0xFF49454E)
 )
 
 @Composable
