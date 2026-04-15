@@ -27,6 +27,8 @@ pluginManagement {
         id("com.android.library").version(agpVersion)
 
         id("org.jetbrains.compose").version(composeVersion)
+
+        id("com.google.gms.google-services").version("4.4.0")
     }
 }
 
@@ -39,5 +41,7 @@ dependencyResolutionManagement {
         mavenCentral()
         google()
         maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
+        // Mapbox SDK repository (public, no auth required for downloads)
+        maven("https://api.mapbox.com/downloads/v2/releases/maven")
     }
 }

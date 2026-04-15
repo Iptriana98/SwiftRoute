@@ -29,6 +29,7 @@ kotlin {
                 implementation(compose.material3) // Using MD3
                 @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
                 implementation(compose.components.resources)
+                implementation(compose.materialIconsExtended) // Extended Material Icons
                 api(project(":shared"))
 
                 // Voyager Navigation
@@ -47,6 +48,10 @@ kotlin {
                 api("androidx.activity:activity-compose:1.8.2")
                 api("androidx.appcompat:appcompat:1.6.1")
                 api("androidx.core:core-ktx:1.12.0")
+                // Mapbox Maps SDK
+                implementation("com.mapbox.maps:android:11.0.0")
+                // Mapbox Location Component plugin
+                implementation("com.mapbox.plugin:maps-locationcomponent:11.0.0")
             }
         }
         val iosX64Main by getting

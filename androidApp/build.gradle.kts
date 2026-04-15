@@ -2,6 +2,7 @@ plugins {
     kotlin("multiplatform")
     id("com.android.application")
     id("org.jetbrains.compose")
+    id("com.google.gms.google-services")
 }
 
 kotlin {
@@ -14,6 +15,21 @@ kotlin {
                 // Koin for Android
                 val koinVersion = "3.5.3"
                 implementation("io.insert-koin:koin-android:$koinVersion")
+
+                // Firebase
+                implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
+                implementation("com.google.firebase:firebase-auth-ktx")
+                implementation("com.google.firebase:firebase-firestore-ktx")
+
+                // Google Play Services (required for Firebase)
+                implementation("com.google.android.gms:play-services-base:18.3.0")
+                implementation("com.google.android.gms:play-services-location:21.0.1")
+
+                // Coroutines for Firebase
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+
+                // Mapbox for maps
+                implementation("com.mapbox.maps:android:11.0.0")
             }
         }
     }
