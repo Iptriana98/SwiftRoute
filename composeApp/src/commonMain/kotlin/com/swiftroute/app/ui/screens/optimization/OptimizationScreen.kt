@@ -16,26 +16,32 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Route
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -45,8 +51,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
+import com.swiftroute.app.shared.data.RouteEntity
 import com.swiftroute.app.shared.data.RouteRepository
 import com.swiftroute.app.shared.data.StopEntity
+import com.swiftroute.app.shared.model.Location
+import com.swiftroute.app.shared.optimizer.OptimizationStrategy
 import com.swiftroute.app.shared.optimizer.RouteOptimizer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -54,7 +63,7 @@ import kotlinx.coroutines.withContext
 
 /**
  * Optimization Setup screen
- * Optimizes stop order for minimum travel distance
+ * Configures and runs route optimization with strategy selection
  */
 @OptIn(ExperimentalMaterial3Api::class)
 class OptimizationScreen(
@@ -69,14 +78,27 @@ class OptimizationScreen(
         val scope = rememberCoroutineScope()
         val routeOptimizer = remember { RouteOptimizer() }
         
+        var route by remember { mutableStateOf<RouteEntity?>(null) }
         var stops by remember { mutableStateOf<List<StopEntity>>(emptyList()) }
         var isLoading by remember { mutableStateOf(true) }
         var isOptimizing by remember { mutableStateOf(false) }
         var optimizationResult by remember { mutableStateOf<OptimizationResult?>(null) }
         
-        // Load stops
+        // Optimization settings
+        var selectedStrategy by remember { mutableIntStateOf(0) } // 0 = Distance, 1 = Time
+        var startLocationType by remember { mutableStateOf(LocationType.CURRENT_LOCATION) }
+        var startCustomAddress by remember { mutableStateOf("") }
+        var endLocationType by remember { mutableStateOf(LocationType.SAME_AS_START) }
+        var endCustomAddress by remember { mutableStateOf("") }
+        
+        // Mock locations for demo (in real app, geocode addresses or use GPS)
+        val mockCurrentLocation = remember { Location(lat = 40.7128, lng = -74.0060) } // NYC
+        val mockWarehouse = remember { Location(lat = 40.7200, lng = -74.0100) }
+        
+        // Load route and stops
         LaunchedEffect(routeId) {
             try {
+                route = routeRepository.getRoute(routeId)
                 stops = routeRepository.getStops(routeId)
                 isLoading = false
             } catch (e: Exception) {
@@ -85,6 +107,8 @@ class OptimizationScreen(
         }
 
         val stopCount = stops.size
+        val strategy = if (selectedStrategy == 0) OptimizationStrategy.MINIMIZE_DISTANCE 
+                       else OptimizationStrategy.MINIMIZE_TIME
 
         if (isLoading) {
             Box(
@@ -114,42 +138,8 @@ class OptimizationScreen(
                     .padding(padding)
                     .padding(16.dp)
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(24.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Info card
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = "Nearest Neighbor + 2-opt",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                            Text(
-                                text = "Optimizes stop order for minimum travel distance",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-                    }
-                }
-
                 // Stops info
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -182,88 +172,283 @@ class OptimizationScreen(
                         )
                     }
                 }
-
-                Spacer(modifier = Modifier.weight(1f))
+                
+                // Optimization Strategy Selection
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "Optimization Goal",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        
+                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                            SegmentedButton(
+                                selected = selectedStrategy == 0,
+                                onClick = { selectedStrategy = 0 },
+                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                                icon = { Icon(Icons.Default.Route, null, modifier = Modifier.size(18.dp)) }
+                            ) {
+                                Text("Shortest Distance")
+                            }
+                            SegmentedButton(
+                                selected = selectedStrategy == 1,
+                                onClick = { selectedStrategy = 1 },
+                                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                                icon = { Icon(Icons.Default.AccessTime, null, modifier = Modifier.size(18.dp)) }
+                            ) {
+                                Text("Fastest Time")
+                            }
+                        }
+                        
+                        Text(
+                            text = if (selectedStrategy == 0) 
+                                "Optimizes route to minimize total travel distance" 
+                            else 
+                                "Optimizes route to minimize total travel time (40 km/h avg)",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                
+                // Starting Point
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.LocationOn,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Starting Point",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        
+                        LocationSelector(
+                            selectedType = startLocationType,
+                            onTypeSelected = { startLocationType = it },
+                            customAddress = startCustomAddress,
+                            onCustomAddressChange = { startCustomAddress = it }
+                        )
+                    }
+                }
+                
+                // Ending Point
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.LocationOn,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.secondary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Ending Point",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        
+                        LocationSelector(
+                            selectedType = endLocationType,
+                            onTypeSelected = { endLocationType = it },
+                            customAddress = endCustomAddress,
+                            onCustomAddressChange = { endCustomAddress = it }
+                        )
+                    }
+                }
 
                 // Results
                 if (optimizationResult != null) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        ),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Column(
-                            modifier = Modifier.padding(16.dp)
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Column {
-                                    Text(
-                                        text = "Est. Time",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            Icons.Default.AccessTime,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "Est. Time",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
                                     Text(
                                         text = "${optimizationResult!!.estimatedMinutes} min",
                                         style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
                                     )
                                 }
                                 Column(horizontalAlignment = Alignment.End) {
-                                    Text(
-                                        text = "Distance",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            Icons.Default.Route,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "Distance",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
                                     Text(
                                         text = "${String.format("%.1f", optimizationResult!!.distanceKm)} km",
                                         style = MaterialTheme.typography.titleLarge,
-                                        fontWeight = FontWeight.Bold
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer
                                     )
                                 }
                             }
-                            if (optimizationResult!!.savedMinutes > 0) {
-                                Spacer(modifier = Modifier.height(12.dp))
+                            if (optimizationResult!!.savedPercent > 0) {
                                 Text(
-                                    text = "Saved ${optimizationResult!!.savedMinutes} min vs original order",
+                                    text = "Saved ${optimizationResult!!.savedPercent}% vs original order",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                             }
                         }
                     }
                 }
 
+                Spacer(modifier = Modifier.height(8.dp))
+
                 Button(
                     onClick = {
                         isOptimizing = true
                         scope.launch {
                             try {
+                                // Determine start and end locations
+                                val startLoc = when (startLocationType) {
+                                    LocationType.CURRENT_LOCATION -> mockCurrentLocation
+                                    LocationType.CUSTOM_ADDRESS -> {
+                                        // In real app, geocode this address
+                                        mockWarehouse
+                                    }
+                                    LocationType.SAME_AS_START -> mockWarehouse
+                                }
+                                
+                                val endLoc = when (endLocationType) {
+                                    LocationType.CURRENT_LOCATION -> mockCurrentLocation
+                                    LocationType.CUSTOM_ADDRESS -> {
+                                        // In real app, geocode this address
+                                        mockWarehouse
+                                    }
+                                    LocationType.SAME_AS_START -> startLoc
+                                }
+                                
+                                // Convert StopEntity to Stop for optimizer
+                                val stopModels = stops.map { entity ->
+                                    com.swiftroute.app.shared.model.Stop(
+                                        id = entity.id,
+                                        routeId = entity.routeId,
+                                        address = entity.address,
+                                        label = entity.label,
+                                        location = Location(entity.latitude, entity.longitude),
+                                        order = entity.order,
+                                        serviceTimeMinutes = entity.serviceTimeMinutes,
+                                        notes = entity.notes
+                                    )
+                                }
+                                
                                 // Run optimization
-                                // Note: This is a simplified version - full implementation would use actual locations
                                 val result = withContext(Dispatchers.Default) {
-                                    // For now, just return the stops sorted by their current order
-                                    // A full implementation would use actual geocoded coordinates
-                                    stops.sortedBy { it.order }
+                                    // Calculate original cost
+                                    val originalCost = routeOptimizer.calculateRouteCost(
+                                        startLoc, stopModels, endLoc, strategy
+                                    )
+                                    
+                                    // Optimize
+                                    val optimizedStops = routeOptimizer.optimize(
+                                        start = startLoc,
+                                        stops = stopModels,
+                                        end = endLoc,
+                                        strategy = strategy
+                                    )
+                                    
+                                    // Calculate optimized cost
+                                    val optimizedCost = routeOptimizer.calculateRouteCost(
+                                        startLoc, optimizedStops, endLoc, strategy
+                                    )
+                                    
+                                    // Calculate metrics
+                                    val distanceKm = routeOptimizer.calculateRouteCost(
+                                        startLoc, optimizedStops, endLoc, 
+                                        OptimizationStrategy.MINIMIZE_DISTANCE
+                                    )
+                                    
+                                    // Time estimate: travel time + service time
+                                    val serviceTime = stopModels.sumOf { it.serviceTimeMinutes }
+                                    val travelTimeMin = optimizedCost.toInt()
+                                    val totalTime = travelTimeMin + serviceTime
+                                    
+                                    // Savings percentage
+                                    val savedPercent = if (originalCost > 0) {
+                                        ((originalCost - optimizedCost) / originalCost * 100).toInt()
+                                    } else 0
+                                    
+                                    Triple(optimizedStops, OptimizationMetrics(
+                                        estimatedMinutes = totalTime,
+                                        distanceKm = distanceKm,
+                                        savedPercent = savedPercent
+                                    ), distanceKm)
                                 }
                                 
                                 // Update stop orders
-                                result.forEachIndexed { index, stop ->
-                                    val updatedStop = stop.copy(order = index)
+                                result.first.forEachIndexed { index, stop ->
+                                    val updatedStop = stops.first { it.id == stop.id }.copy(order = index)
                                     routeRepository.updateStop(updatedStop)
                                 }
                                 
-                                // Calculate estimated values (simplified)
-                                val estimatedMinutes = result.size * 10 // Simplified estimate
-                                val distanceKm = result.size * 2.5 // Simplified estimate
-                                val savedMinutes = 15 // Simplified
-                                
-                                optimizationResult = OptimizationResult(
-                                    estimatedMinutes = estimatedMinutes,
-                                    distanceKm = distanceKm,
-                                    savedMinutes = savedMinutes
-                                )
+                                optimizationResult = result.second
                                 
                                 // Refresh stops
                                 stops = routeRepository.getStops(routeId)
@@ -316,6 +501,8 @@ class OptimizationScreen(
                         Text("Done")
                     }
                 }
+                
+                Spacer(modifier = Modifier.height(32.dp))
             }
         }
     }
@@ -341,37 +528,22 @@ fun LocationSelector(
     customAddress: String,
     onCustomAddressChange: (String) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         LocationType.entries.forEach { type ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                RadioButton(
-                    selected = selectedType == type,
-                    onClick = { onTypeSelected(type) }
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Icon(
-                    imageVector = when (type) {
-                        LocationType.CURRENT_LOCATION -> Icons.Default.LocationOn
-                        LocationType.CUSTOM_ADDRESS -> Icons.Default.LocationOn
-                        LocationType.SAME_AS_START -> Icons.Default.AutoAwesome
-                    },
-                    contentDescription = null,
-                    tint = if (selectedType == type) MaterialTheme.colorScheme.primary
-                           else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = when (type) {
-                        LocationType.CURRENT_LOCATION -> "Current Location"
-                        LocationType.CUSTOM_ADDRESS -> "Custom Address"
-                        LocationType.SAME_AS_START -> "Same as Start"
-                    },
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
+            FilterChip(
+                selected = selectedType == type,
+                onClick = { onTypeSelected(type) },
+                label = {
+                    Text(
+                        when (type) {
+                            LocationType.CURRENT_LOCATION -> "📍 Current Location"
+                            LocationType.CUSTOM_ADDRESS -> "🏠 Custom Address"
+                            LocationType.SAME_AS_START -> "↩️ Same as Start"
+                        }
+                    )
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
         }
 
         if (selectedType == LocationType.CUSTOM_ADDRESS) {
@@ -393,5 +565,14 @@ fun LocationSelector(
 data class OptimizationResult(
     val estimatedMinutes: Int,
     val distanceKm: Double,
-    val savedMinutes: Int
+    val savedPercent: Int
+)
+
+/**
+ * Internal metrics for optimization
+ */
+private data class OptimizationMetrics(
+    val estimatedMinutes: Int,
+    val distanceKm: Double,
+    val savedPercent: Int
 )

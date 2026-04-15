@@ -15,13 +15,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import com.swiftroute.app.shared.data.RouteEntity
 import com.swiftroute.app.shared.data.RouteRepository
 import com.swiftroute.app.shared.data.StopEntity
+import com.swiftroute.app.shared.model.Location
+import com.swiftroute.app.ui.components.RouteMapView
 import kotlinx.coroutines.launch
 
 /**
@@ -45,12 +46,18 @@ class RouteOverviewScreen(
         var stops by remember { mutableStateOf<List<StopEntity>>(emptyList()) }
         var isLoading by remember { mutableStateOf(true) }
         var error by remember { mutableStateOf<String?>(null) }
+        var currentLocation by remember { mutableStateOf<Location?>(null) }
 
         // Load route and stops
         LaunchedEffect(routeId) {
             try {
                 route = routeRepository.getRoute(routeId)
                 stops = routeRepository.getStops(routeId)
+                // TODO: Get actual current location from GPS
+                // For now, use first stop as mock location if available
+                currentLocation = stops.firstOrNull()?.let { 
+                    Location(it.lat, it.lng)
+                }
                 isLoading = false
             } catch (e: Exception) {
                 error = e.message ?: "Failed to load route"
@@ -62,6 +69,22 @@ class RouteOverviewScreen(
         val totalServiceTime = stops.sumOf { it.serviceTimeMinutes }
         val estimatedTotalMinutes = totalServiceTime + (stops.size * 5) // Add travel time estimate
         val totalStops = stops.size
+
+        // Convert stops to model format for map
+        val mapStops = remember(stops) {
+            stops.sortedBy { it.order }.map { stop ->
+                com.swiftroute.app.shared.model.Stop(
+                    id = stop.id,
+                    routeId = stop.routeId,
+                    address = stop.address,
+                    label = stop.label,
+                    location = Location(stop.lat, stop.lng),
+                    order = stop.order,
+                    serviceTimeMinutes = stop.serviceTimeMinutes,
+                    notes = stop.notes
+                )
+            }
+        }
 
         if (isLoading) {
             Box(
@@ -118,71 +141,17 @@ class RouteOverviewScreen(
                     .fillMaxSize()
                     .padding(padding)
             ) {
-                // Map placeholder (will be replaced with actual MapLibre)
-                Box(
+                // Map with route
+                RouteMapView(
+                    stops = mapStops,
+                    startLocation = currentLocation,
+                    endLocation = null, // TODO: Add end location support
+                    currentLocation = currentLocation,
+                    onMapClick = null,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(250.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    // TODO: Replace with actual RouteMapView
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Map,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "${stops.size} stops on this route",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        if (stops.isNotEmpty()) {
-                            Text(
-                                text = stops.firstOrNull()?.address ?: "",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    // Map controls
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(16.dp)
-                    ) {
-                        FloatingActionButton(
-                            onClick = { /* TODO: Zoom in */ },
-                            modifier = Modifier.size(40.dp),
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = "Zoom in")
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        FloatingActionButton(
-                            onClick = { /* TODO: Zoom out */ },
-                            modifier = Modifier.size(40.dp),
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ) {
-                            Icon(Icons.Default.Remove, contentDescription = "Zoom out")
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        FloatingActionButton(
-                            onClick = { /* TODO: Center on route */ },
-                            modifier = Modifier.size(40.dp),
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ) {
-                            Icon(Icons.Default.MyLocation, contentDescription = "My location")
-                        }
-                    }
-                }
+                )
 
                 // Route summary
                 Card(

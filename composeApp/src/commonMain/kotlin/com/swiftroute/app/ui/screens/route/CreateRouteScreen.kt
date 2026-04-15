@@ -146,36 +146,6 @@ class CreateRouteScreen(
                         }
                     }
                 )
-            },
-            floatingActionButton = {
-                ExtendedFloatingActionButton(
-                    onClick = {
-                        if (currentRouteId.isEmpty()) {
-                            // First create the route, then add stop
-                            scope.launch {
-                                isSaving = true
-                                try {
-                                    val newRoute = RouteEntity(
-                                        id = "",
-                                        userId = userId,
-                                        name = routeName.ifBlank { "New Route" }
-                                    )
-                                    currentRouteId = routeRepository.createRoute(newRoute)
-                                    onNavigateToAddStop(currentRouteId, null)
-                                } catch (e: Exception) {
-                                    // Handle error
-                                } finally {
-                                    isSaving = false
-                                }
-                            }
-                        } else {
-                            onNavigateToAddStop(currentRouteId, null)
-                        }
-                    },
-                    icon = { Icon(Icons.Default.AddLocation, contentDescription = null) },
-                    text = { Text("Add Stop") },
-                    expanded = !isSaving
-                )
             }
         ) { padding ->
             Column(
@@ -283,38 +253,54 @@ class CreateRouteScreen(
                                 onMoveDown = { /* TODO: Reorder */ }
                             )
                         }
-                        item {
-                            Spacer(modifier = Modifier.height(80.dp))
-                        }
                     }
                 }
 
                 // Bottom action bar
-                if (stops.isNotEmpty() && currentRouteId.isNotEmpty()) {
-                    HorizontalDivider()
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = { onNavigateToOptimization(currentRouteId) },
-                            modifier = Modifier.weight(1f),
-                            enabled = stops.size >= 2
-                        ) {
-                            Icon(Icons.Default.AutoAwesome, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Optimize")
-                        }
+                HorizontalDivider()
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Add Stop button (always visible when editing)
+                    if (currentRouteId.isNotEmpty()) {
                         Button(
-                            onClick = onNavigateBack,
-                            modifier = Modifier.weight(1f),
+                            onClick = { onNavigateToAddStop(currentRouteId, null) },
+                            modifier = Modifier.fillMaxWidth(),
                             enabled = !isSaving
                         ) {
-                            Icon(Icons.Default.Check, contentDescription = null)
+                            Icon(Icons.Default.AddLocation, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Done")
+                            Text("Add Stop")
+                        }
+                    }
+                    
+                    // Route actions (when stops exist)
+                    if (stops.isNotEmpty() && currentRouteId.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { onNavigateToOptimization(currentRouteId) },
+                                modifier = Modifier.weight(1f),
+                                enabled = stops.size >= 2
+                            ) {
+                                Icon(Icons.Default.AutoAwesome, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Optimize")
+                            }
+                            Button(
+                                onClick = onNavigateBack,
+                                modifier = Modifier.weight(1f),
+                                enabled = !isSaving
+                            ) {
+                                Icon(Icons.Default.Check, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Done")
+                            }
                         }
                     }
                 }

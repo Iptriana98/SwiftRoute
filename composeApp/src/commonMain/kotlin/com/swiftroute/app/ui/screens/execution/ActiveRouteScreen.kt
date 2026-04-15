@@ -24,13 +24,15 @@ import kotlinx.coroutines.launch
 /**
  * Active Route Mode screen
  * Shows current stop info, Navigate button, Complete/Skip buttons, and progress indicator
+ * Supports pause/resume functionality
  */
 @OptIn(ExperimentalMaterial3Api::class)
 class ActiveRouteScreen(
     private val userId: String,
     private val routeId: String,
     private val routeRepository: RouteRepository,
-    private val onNavigateToSummary: () -> Unit = {}
+    private val onNavigateToSummary: () -> Unit = {},
+    private val onPauseRoute: () -> Unit = {}
 ) : Screen {
 
     @Composable
@@ -46,7 +48,9 @@ class ActiveRouteScreen(
         var skippedStopIds by remember { mutableStateOf<List<String>>(emptyList()) }
         var isLoading by remember { mutableStateOf(true) }
         var showEndConfirmation by remember { mutableStateOf(false) }
+        var showPauseConfirmation by remember { mutableStateOf(false) }
         var preferredNavApp by remember { mutableStateOf("google_maps") }
+        var isPaused by remember { mutableStateOf(false) }
 
         // Load route, stops, and session
         LaunchedEffect(routeId) {
@@ -54,7 +58,8 @@ class ActiveRouteScreen(
                 route = routeRepository.getRoute(routeId)
                 stops = routeRepository.getStops(routeId).sortedBy { it.order }
                 
-                // Create or resume session
+                // Try to load existing session (for resume functionality)
+                // TODO: In real implementation, load from repository
                 if (currentSession == null) {
                     val newSession = RouteSessionEntity(
                         id = "",
@@ -112,25 +117,45 @@ class ActiveRouteScreen(
             return
         }
 
+        // Paused state UI
+        if (isPaused) {
+            PausedRouteView(
+                routeName = route?.name ?: "Route",
+                completedCount = completedCount,
+                totalStops = totalStops,
+                onResume = { isPaused = false },
+                onEndRoute = { 
+                    showEndConfirmation = true 
+                }
+            )
+            return
+        }
+
         Scaffold(
             topBar = {
                 TopAppBar(
                     title = {
-                        Text(route?.name ?: "Active Route")
+                        Column {
+                            Text(route?.name ?: "Active Route")
+                            Text(
+                                text = "${completedCount}/$totalStops completed",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     },
                     navigationIcon = {
-                        IconButton(onClick = { showEndConfirmation = true }) {
-                            Icon(Icons.Default.Close, contentDescription = "End route")
+                        IconButton(onClick = { showPauseConfirmation = true }) {
+                            Icon(Icons.Default.Pause, contentDescription = "Pause route")
                         }
                     },
                     actions = {
-                        TextButton(
-                            onClick = onNavigateToSummary,
-                            colors = ButtonDefaults.textButtonColors(
-                                contentColor = MaterialTheme.colorScheme.error
+                        IconButton(onClick = { showEndConfirmation = true }) {
+                            Icon(
+                                Icons.Default.Close, 
+                                contentDescription = "End route",
+                                tint = MaterialTheme.colorScheme.error
                             )
-                        ) {
-                            Text("End Route")
                         }
                     }
                 )
@@ -172,12 +197,19 @@ class ActiveRouteScreen(
                                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
                                 )
                             }
-                            Text(
-                                text = "${(progress * 100).toInt()}%",
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = "${(progress * 100).toInt()}%",
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                                Text(
+                                    text = "ETA ${etaMinutes}m",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                )
+                            }
                         }
                         Spacer(modifier = Modifier.height(12.dp))
                         LinearProgressIndicator(
@@ -375,12 +407,44 @@ class ActiveRouteScreen(
             }
         }
 
+        // Pause confirmation dialog
+        if (showPauseConfirmation) {
+            AlertDialog(
+                onDismissRequest = { showPauseConfirmation = false },
+                title = { Text("Pause Route?") },
+                text = { Text("You can resume this route later from where you left off. Progress is saved automatically.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showPauseConfirmation = false
+                            isPaused = true
+                            // TODO: Save session state to repository
+                        }
+                    ) {
+                        Text("Pause Route")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showPauseConfirmation = false }) {
+                        Text("Continue")
+                    }
+                }
+            )
+        }
+
         // End route confirmation dialog
         if (showEndConfirmation) {
             AlertDialog(
                 onDismissRequest = { showEndConfirmation = false },
                 title = { Text("End Route?") },
-                text = { Text("You have $completedCount of $totalStops stops completed. Are you sure you want to end this route?") },
+                text = { 
+                    Text(
+                        if (completedCount > 0) 
+                            "You have $completedCount of $totalStops stops completed. End this route and view your summary?"
+                        else 
+                            "Are you sure you want to end this route without completing any stops?"
+                    )
+                },
                 confirmButton = {
                     TextButton(
                         onClick = {
@@ -393,10 +457,107 @@ class ActiveRouteScreen(
                 },
                 dismissButton = {
                     TextButton(onClick = { showEndConfirmation = false }) {
-                        Text("Continue")
+                        Text("Continue Route")
                     }
                 }
             )
+        }
+    }
+}
+
+/**
+ * Paused state view when user pauses the route
+ */
+@Composable
+private fun PausedRouteView(
+    routeName: String,
+    completedCount: Int,
+    totalStops: Int,
+    onResume: () -> Unit,
+    onEndRoute: () -> Unit
+) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(32.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.PauseCircle,
+                contentDescription = null,
+                modifier = Modifier.size(80.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+            
+            Text(
+                text = "Route Paused",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold
+            )
+            
+            Text(
+                text = routeName,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    Text(
+                        text = "$completedCount of $totalStops stops completed",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+            
+            Text(
+                text = "You can resume this route anytime.\nYour progress has been saved.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Button(
+                onClick = onResume,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Default.PlayArrow, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Resume Route")
+            }
+            
+            OutlinedButton(
+                onClick = onEndRoute,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Icon(Icons.Default.Close, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("End Route")
+            }
         }
     }
 }

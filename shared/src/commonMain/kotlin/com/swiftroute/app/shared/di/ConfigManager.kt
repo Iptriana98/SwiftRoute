@@ -21,18 +21,26 @@ object ConfigManager {
      * Load configuration from .env file in project root.
      * Call this once at app startup.
      */
-    fun load(projectRoot: String = System.getProperty("user.dir")) {
+    fun load(projectRoot: String = System.getProperty("user.dir") ?: ".") {
         val envFile = File(projectRoot, ".env")
         
         if (!envFile.exists()) {
             // Try alternative locations
-            val altPaths = listOf(
-                File(projectRoot).parentFile?.absolutePath?.let { File(it, ".env") },
-                File(System.getProperty("user.home"), ".swiftroute", ".env")
-            )
+            val altLocations = mutableListOf<File>()
             
-            for (path in altPaths) {
-                if (path != null && path.exists()) {
+            // Try parent directory
+            File(projectRoot).parentFile?.let { parent ->
+                altLocations.add(File(parent, ".env"))
+            }
+            
+            // Try ~/.swiftroute/.env
+            val homeDir = System.getProperty("user.home")
+            if (homeDir != null) {
+                altLocations.add(File(File(homeDir, ".swiftroute"), ".env"))
+            }
+            
+            for (path in altLocations) {
+                if (path.exists()) {
                     parseEnvFile(path)
                     return
                 }
