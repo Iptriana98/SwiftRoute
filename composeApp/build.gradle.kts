@@ -1,87 +1,79 @@
+import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
-    kotlin("multiplatform")
-    id("com.android.library")
-    id("org.jetbrains.compose")
+    alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.androidApplication)
+    alias(libs.plugins.composeMultiplatform)
+    alias(libs.plugins.composeCompiler)
 }
 
 kotlin {
-    androidTarget()
-
-    jvm("desktop")
-
+    androidTarget {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_11)
+        }
+    }
+    
     listOf(
-        iosX64(),
         iosArm64(),
         iosSimulatorArm64()
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
-            baseName = "shared"
+            baseName = "ComposeApp"
             isStatic = true
-            export(project(":shared"))
         }
     }
-
+    
     sourceSets {
-        val commonMain by getting {
-            dependencies {
-                implementation(compose.runtime)
-                implementation(compose.foundation)
-                implementation(compose.material3) // Using MD3
-                @OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
-                implementation(compose.components.resources)
-                implementation(compose.materialIconsExtended) // Extended Material Icons
-                api(project(":shared"))
-
-                // Voyager Navigation
-                val voyagerVersion = "1.0.1"
-                implementation("cafe.adriel.voyager:voyager-navigator:$voyagerVersion")
-                implementation("cafe.adriel.voyager:voyager-screenmodel:$voyagerVersion")
-                implementation("cafe.adriel.voyager:voyager-tab-navigator:$voyagerVersion")
-                implementation("cafe.adriel.voyager:voyager-transitions:$voyagerVersion")
-                implementation("cafe.adriel.voyager:voyager-koin:$voyagerVersion")
-            }
-
-
+        androidMain.dependencies {
+            implementation(libs.compose.uiToolingPreview)
+            implementation(libs.androidx.activity.compose)
         }
-        val androidMain by getting {
-            dependencies {
-                api("androidx.activity:activity-compose:1.8.2")
-                api("androidx.appcompat:appcompat:1.6.1")
-                api("androidx.core:core-ktx:1.12.0")
-                // Mapbox Maps SDK
-                implementation("com.mapbox.maps:android:11.0.0")
-                // Mapbox Location Component plugin
-                implementation("com.mapbox.plugin:maps-locationcomponent:11.0.0")
-            }
+        commonMain.dependencies {
+            implementation(libs.compose.runtime)
+            implementation(libs.compose.foundation)
+            implementation(libs.compose.material3)
+            implementation(libs.compose.ui)
+            implementation(libs.compose.components.resources)
+            implementation(libs.compose.uiToolingPreview)
+            implementation(libs.androidx.lifecycle.viewmodelCompose)
+            implementation(libs.androidx.lifecycle.runtimeCompose)
         }
-        val iosX64Main by getting
-        val iosArm64Main by getting
-        val iosSimulatorArm64Main by getting
-        val iosMain by creating {
-            dependsOn(commonMain)
-            iosX64Main.dependsOn(this)
-            iosArm64Main.dependsOn(this)
-            iosSimulatorArm64Main.dependsOn(this)
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
         }
     }
 }
 
 android {
-    compileSdk = (findProperty("android.compileSdk") as String).toInt()
-    namespace = "com.swiftroute.app.common"
-
-    sourceSets["main"].manifest.srcFile("src/androidMain/AndroidManifest.xml")
-    sourceSets["main"].res.srcDirs("src/androidMain/res")
-    sourceSets["main"].resources.srcDirs("src/commonMain/resources")
+    namespace = "com.swiftroute.app"
+    compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        minSdk = (findProperty("android.minSdk") as String).toInt()
+        applicationId = "com.swiftroute.app"
+        minSdk = libs.versions.android.minSdk.get().toInt()
+        targetSdk = libs.versions.android.targetSdk.get().toInt()
+        versionCode = 1
+        versionName = "1.0"
+    }
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = false
+        }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-    kotlin {
-        jvmToolchain(17)
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
 }
+
+dependencies {
+    debugImplementation(libs.compose.uiTooling)
+}
+
