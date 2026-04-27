@@ -1,8 +1,8 @@
 package com.swiftroute.app.domain.model
 
-sealed interface Try<out T> {
-    data class Success<T>(val value: T) : Try<T>
-    data class Failure(val error: AppError) : Try<Nothing>
+sealed interface DomainResult<out T> {
+    data class Success<T>(val value: T) : DomainResult<T>
+    data class Failure(val error: AppError) : DomainResult<Nothing>
 }
 
 sealed interface AppError {

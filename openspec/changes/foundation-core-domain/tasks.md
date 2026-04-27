@@ -10,8 +10,8 @@
 
 ### 1. Error Handling Infrastructure
 
-- [x] Create `composeApp/src/commonMain/kotlin/com/swiftroute/app/domain/model/Try.kt`
-  - Implement the `Try<out T>` sealed interface (`Success`, `Failure`).
+- [x] Create `composeApp/src/commonMain/kotlin/com/swiftroute/app/domain/model/DomainResult.kt`
+  - Implement the `DomainResult<out T>` sealed interface (`Success`, `Failure`).
   - Implement the `AppError` sealed interface (`Network`, `Database`, `Geocoding`, `Unknown`).
 
 ### 2. Domain Models
