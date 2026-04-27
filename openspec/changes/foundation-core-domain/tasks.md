@@ -10,28 +10,28 @@
 
 ### 1. Error Handling Infrastructure
 
-- [ ] Create `composeApp/src/commonMain/kotlin/com/swiftroute/app/domain/model/Try.kt`
+- [x] Create `composeApp/src/commonMain/kotlin/com/swiftroute/app/domain/model/Try.kt`
   - Implement the `Try<out T>` sealed interface (`Success`, `Failure`).
   - Implement the `AppError` sealed interface (`Network`, `Database`, `Geocoding`, `Unknown`).
 
 ### 2. Domain Models
 
-- [ ] Create `composeApp/src/commonMain/kotlin/com/swiftroute/app/domain/model/Stop.kt`
+- [x] Create `composeApp/src/commonMain/kotlin/com/swiftroute/app/domain/model/Stop.kt`
   - Implement `data class Stop`.
-- [ ] Create `composeApp/src/commonMain/kotlin/com/swiftroute/app/domain/model/RouteStatus.kt`
+- [x] Create `composeApp/src/commonMain/kotlin/com/swiftroute/app/domain/model/RouteStatus.kt`
   - Implement `enum class RouteStatus`.
-- [ ] Create `composeApp/src/commonMain/kotlin/com/swiftroute/app/domain/model/Route.kt`
+- [x] Create `composeApp/src/commonMain/kotlin/com/swiftroute/app/domain/model/Route.kt`
   - Implement `data class Route` (needs `Stop` and `RouteStatus`).
-- [ ] Create `composeApp/src/commonMain/kotlin/com/swiftroute/app/domain/model/OptimizationCriterion.kt`
+- [x] Create `composeApp/src/commonMain/kotlin/com/swiftroute/app/domain/model/OptimizationCriterion.kt`
   - Implement `enum class OptimizationCriterion`.
 
 ### 3. Repository Interfaces
 
-- [ ] Create `composeApp/src/commonMain/kotlin/com/swiftroute/app/domain/repository/RouteRepository.kt`
+- [x] Create `composeApp/src/commonMain/kotlin/com/swiftroute/app/domain/repository/RouteRepository.kt`
   - Implement interface with `saveRoute`, `observeAllRoutes`, `getRouteById`, `deleteRoute`.
-- [ ] Create `composeApp/src/commonMain/kotlin/com/swiftroute/app/domain/repository/GeocodingRepository.kt`
+- [x] Create `composeApp/src/commonMain/kotlin/com/swiftroute/app/domain/repository/GeocodingRepository.kt`
   - Implement interface with `searchAddress`.
-- [ ] Create `composeApp/src/commonMain/kotlin/com/swiftroute/app/domain/repository/OptimizationRepository.kt`
+- [x] Create `composeApp/src/commonMain/kotlin/com/swiftroute/app/domain/repository/OptimizationRepository.kt`
   - Implement interface with `optimizeRoute`.
 
 ## Next Phase
